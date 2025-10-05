@@ -63,7 +63,7 @@ public class LightStorage implements Effect {
 
 	private static final ConstantDataLayer ALWAYS_0 = new ConstantDataLayer(0);
 	private static final ConstantDataLayer ALWAYS_15 = new ConstantDataLayer(15);
-	private static final int STATIC_SCENE_ID = 0;
+	public static final int STATIC_SCENE_ID = 0;
 
 	private final LevelAccessor level;
 	private final LightLut lut;

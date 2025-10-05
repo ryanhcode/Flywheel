@@ -1,5 +1,7 @@
 package dev.engine_room.flywheel.backend.engine.embed;
 
+import dev.engine_room.flywheel.backend.engine.LightStorage;
+
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix3f;
 import org.joml.Matrix3fc;
@@ -30,8 +32,7 @@ public class EmbeddedEnvironment implements VisualEmbedding, Environment {
 	private final Matrix4f scene = new Matrix4f();
 	private final Matrix4f poseComposed = new Matrix4f();
 	private final Matrix3f normalComposed = new Matrix3f();
-	private int sceneId = 0;
-
+	private int sceneId = LightStorage.STATIC_SCENE_ID;
 	public int matrixIndex = 0;
 
 	private boolean deleted = false;
@@ -93,8 +94,13 @@ public class EmbeddedEnvironment implements VisualEmbedding, Environment {
 	public void setupDraw(GlProgram program) {
 		program.setMat4(EmbeddingUniforms.MODEL_MATRIX, poseComposed);
 		program.setMat3(EmbeddingUniforms.NORMAL_MATRIX, normalComposed);
-		program.setMat4(EmbeddingUniforms.SCENE_MATRIX, scene);
 		program.setUInt(EmbeddingUniforms.SCENE, sceneId);
+
+		if (sceneId == 0) {
+			program.setMat4(EmbeddingUniforms.SCENE_MATRIX, poseComposed);
+		} else {
+			program.setMat4(EmbeddingUniforms.SCENE_MATRIX, scene);
+		}
 	}
 
 	@Override
