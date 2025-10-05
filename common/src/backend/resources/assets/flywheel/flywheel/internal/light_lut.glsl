@@ -312,11 +312,11 @@ vec3 _flw_lightForDirection(uint[27] lights, vec3 interpolant, uint c00, uint c0
     return light;
 }
 
-bool flw_light(uint scene, vec3 worldPos, vec3 normal, out FlwLightAo light) {
+bool flw_light(uint scene, vec3 worldPos, vec3 normal, ivec3 renderOrigin, out FlwLightAo light) {
     // Always use the section of the block we are contained in to ensure accuracy.
     // We don't want to interpolate between sections, but also we might not be able
     // to rely on the existence neighboring sections, so don't do any extra rounding here.
-    ivec3 blockPos = ivec3(floor(worldPos)) + flw_renderOrigin;
+    ivec3 blockPos = ivec3(floor(worldPos)) + renderOrigin;
 
     uint lightSectionIndex;
     if (_flw_chunkCoordToSectionIndex(scene, blockPos >> 4, lightSectionIndex)) {
