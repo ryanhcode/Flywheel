@@ -8,6 +8,8 @@ uniform int _flw_baseInstance = 0;
 #ifdef FLW_EMBEDDED
 uniform mat4 _flw_modelMatrixUniform;
 uniform mat3 _flw_normalMatrixUniform;
+uniform mat4 _flw_lightingSceneMatrixUniform;
+uniform uint _flw_lightingSceneUniform;
 #endif
 
 uniform uint _flw_vertexOffset;
@@ -20,6 +22,8 @@ void main() {
     #ifdef FLW_EMBEDDED
     _flw_modelMatrix = _flw_modelMatrixUniform;
     _flw_normalMatrix = _flw_normalMatrixUniform;
+    _flw_lightingSceneMatrix = _flw_lightingSceneMatrixUniform;
+    _flw_lightingSceneId = _flw_lightingSceneUniform;
     #endif
 
     _flw_main(instance, uint(gl_InstanceID), _flw_vertexOffset);

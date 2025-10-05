@@ -23,6 +23,8 @@ import dev.engine_room.flywheel.lib.task.SimplePlan;
 import dev.engine_room.flywheel.lib.visual.SimpleDynamicVisual;
 import dev.engine_room.flywheel.lib.visual.component.HitboxComponent;
 import dev.engine_room.flywheel.lib.visual.util.InstanceRecycler;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.Long2IntMap;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
@@ -61,17 +63,17 @@ public class LightStorage implements Effect {
 
 	private static final ConstantDataLayer ALWAYS_0 = new ConstantDataLayer(0);
 	private static final ConstantDataLayer ALWAYS_15 = new ConstantDataLayer(15);
+	private static final int STATIC_SCENE_ID = 0;
 
 	private final LevelAccessor level;
 	private final LightLut lut;
 	private final CpuArena arena;
-	private final Long2IntMap section2ArenaIndex;
+	private final Int2ObjectMap<Long2IntMap> scene2SectionArenaIndexMap;
 
 	private final BitSet changed = new BitSet();
+	private final LongSet updatedSections = new LongOpenHashSet();
 	private boolean needsLutRebuild = false;
 	private boolean isDebugOn = false;
-
-	private final LongSet updatedSections = new LongOpenHashSet();
 	@Nullable
 	private LongSet requestedSections;
 
@@ -79,8 +81,7 @@ public class LightStorage implements Effect {
 		this.level = level;
 		lut = new LightLut();
 		arena = new CpuArena(SECTION_SIZE_BYTES, DEFAULT_ARENA_CAPACITY_SECTIONS);
-		section2ArenaIndex = new Long2IntOpenHashMap();
-		section2ArenaIndex.defaultReturnValue(INVALID_SECTION);
+		scene2SectionArenaIndexMap = new Int2ObjectOpenHashMap<>();
 	}
 
 	@Override
@@ -129,42 +130,52 @@ public class LightStorage implements Effect {
 				return;
 			}
 
-			removeUnusedSections();
+			updateLightSections();
+		});
+	}
 
-			// Start building the set of sections we need to collect this frame.
-			LongSet sectionsToCollect;
-			if (requestedSections == null) {
-				// If none were requested, then we need to collect all sections that received updates.
-				sectionsToCollect = new LongOpenHashSet();
-			} else {
-				// If we did receive a new set of requested sections, we only
-				// need to collect the sections that weren't yet tracked.
-				sectionsToCollect = new LongOpenHashSet(requestedSections);
+	private void updateLightSections() {
+		removeUnusedSections();
+
+		int scene = STATIC_SCENE_ID;
+
+		// Start building the set of sections we need to collect this frame.
+		LongSet sectionsToCollect;
+		Long2IntMap section2ArenaIndex = scene2SectionArenaIndexMap.get(scene);
+		if (requestedSections == null) {
+			// If none were requested, then we need to collect all sections that received updates.
+			sectionsToCollect = new LongOpenHashSet();
+		} else {
+			// If we did receive a new set of requested sections, we only
+			// need to collect the sections that weren't yet tracked.
+			sectionsToCollect = new LongOpenHashSet(requestedSections);
+
+			if (section2ArenaIndex != null) {
 				sectionsToCollect.removeAll(section2ArenaIndex.keySet());
 			}
+		}
 
-			// updatedSections contains all sections that received light updates,
-			// but we only care about its intersection with our tracked sections.
-			for (long updatedSection : updatedSections) {
-				// Since sections contain the border light of their neighbors, we need to collect the neighbors as well.
-				for (int x = -1; x <= 1; x++) {
-					for (int y = -1; y <= 1; y++) {
-						for (int z = -1; z <= 1; z++) {
-							long section = SectionPos.offset(updatedSection, x, y, z);
-							if (section2ArenaIndex.containsKey(section)) {
-								sectionsToCollect.add(section);
-							}
+		// updatedSections contains all sections that received light updates,
+		// but we only care about its intersection with our tracked sections.
+		for (long updatedSection : updatedSections) {
+			// Since sections contain the border light of their neighbors, we need to collect the neighbors as well.
+			for (int x = -1; x <= 1; x++) {
+				for (int y = -1; y <= 1; y++) {
+					for (int z = -1; z <= 1; z++) {
+						long section = SectionPos.offset(updatedSection, x, y, z);
+						if (section2ArenaIndex != null && section2ArenaIndex.containsKey(section)) {
+							sectionsToCollect.add(section);
 						}
 					}
 				}
 			}
+		}
 
-			// Now actually do the collection.
-			sectionsToCollect.forEach(this::collectSection);
+		// Now actually do the collection.
+		sectionsToCollect.forEach(x -> this.collectSection(scene, x));
 
-			updatedSections.clear();
-			requestedSections = null;
-		});
+		updatedSections.clear();
+		requestedSections = null;
 	}
 
 	private void removeUnusedSections() {
@@ -174,17 +185,22 @@ public class LightStorage implements Effect {
 
 		boolean anyRemoved = false;
 
-		var entries = section2ArenaIndex.long2IntEntrySet();
-		var it = entries.iterator();
-		while (it.hasNext()) {
-			var entry = it.next();
-			var section = entry.getLongKey();
+		for (Int2ObjectMap.Entry<Long2IntMap> sceneEntry : this.scene2SectionArenaIndexMap.int2ObjectEntrySet()) {
+			int sceneId = sceneEntry.getIntKey();
+			Long2IntMap section2ArenaIndex = sceneEntry.getValue();
 
-			if (!requestedSections.contains(section)) {
-				arena.free(entry.getIntValue());
-				endTrackingSection(section);
-				it.remove();
-				anyRemoved = true;
+			var entries = section2ArenaIndex.long2IntEntrySet();
+			var it = entries.iterator();
+			while (it.hasNext()) {
+				var entry = it.next();
+				var section = entry.getLongKey();
+
+				if (!requestedSections.contains(section)) {
+					arena.free(entry.getIntValue());
+					endTrackingSection(sceneId, section);
+					it.remove();
+					anyRemoved = true;
+				}
 			}
 		}
 
@@ -194,13 +210,13 @@ public class LightStorage implements Effect {
 		}
 	}
 
-	private void beginTrackingSection(long section, int index) {
-		lut.add(section, index);
+	private void beginTrackingSection(int scene, long section, int index) {
+		lut.add(scene, section, index);
 		needsLutRebuild = true;
 	}
 
-	private void endTrackingSection(long section) {
-		lut.remove(section);
+	private void endTrackingSection(int scene, long section) {
+		lut.remove(scene, section);
 		needsLutRebuild = true;
 	}
 
@@ -208,8 +224,8 @@ public class LightStorage implements Effect {
 		return arena.capacity();
 	}
 
-	public void collectSection(long section) {
-		int index = indexForSection(section);
+	public void collectSection(int scene, long section) {
+		int index = indexForSection(scene, section);
 
 		changed.set(index);
 
@@ -405,12 +421,13 @@ public class LightStorage implements Effect {
 
 	/**
 	 * Write to the given section.
-	 * @param ptr Pointer to the base of a section's data.
-	 * @param x X coordinate in the section, from [-1, 16].
-	 * @param y Y coordinate in the section, from [-1, 16].
-	 * @param z Z coordinate in the section, from [-1, 16].
+	 *
+	 * @param ptr   Pointer to the base of a section's data.
+	 * @param x     X coordinate in the section, from [-1, 16].
+	 * @param y     Y coordinate in the section, from [-1, 16].
+	 * @param z     Z coordinate in the section, from [-1, 16].
 	 * @param block The block light level, from [0, 15].
-	 * @param sky The sky light level, from [0, 15].
+	 * @param sky   The sky light level, from [0, 15].
 	 */
 	private void write(long ptr, int x, int y, int z, int block, int sky) {
 		int x1 = x + 1;
@@ -427,21 +444,27 @@ public class LightStorage implements Effect {
 	/**
 	 * Get a pointer to the base of the given section.
 	 * <p> If the section is not yet reserved, allocate a chunk in the arena.
+	 *
 	 * @param section The section to write to.
 	 * @return A raw pointer to the base of the section.
 	 */
-	private long ptrForSection(long section) {
-		return arena.indexToPointer(indexForSection(section));
+	private long ptrForSection(int scene, long section) {
+		return arena.indexToPointer(indexForSection(scene, section));
 	}
 
-	private int indexForSection(long section) {
-		int out = section2ArenaIndex.get(section);
+	private int indexForSection(int scene, long section) {
+		Long2IntMap map = this.scene2SectionArenaIndexMap.get(scene);
+		int out = map != null ? map.get(section) : INVALID_SECTION;
 
 		// Need to allocate.
 		if (out == INVALID_SECTION) {
 			out = arena.alloc();
-			section2ArenaIndex.put(section, out);
-			beginTrackingSection(section, out);
+			this.scene2SectionArenaIndexMap.computeIfAbsent(scene, (ignored) -> {
+				Long2IntOpenHashMap newMap = new Long2IntOpenHashMap();
+				newMap.defaultReturnValue(INVALID_SECTION);
+				return newMap;
+			}).put(section, out);
+			beginTrackingSection(scene, section, out);
 		}
 		return out;
 	}
@@ -501,6 +524,19 @@ public class LightStorage implements Effect {
 		}
 	}
 
+	private static class ConstantDataLayer extends DataLayer {
+		private final int value;
+
+		private ConstantDataLayer(int value) {
+			this.value = value;
+		}
+
+		@Override
+		public int get(int x, int y, int z) {
+			return value;
+		}
+	}
+
 	public class DebugVisual implements EffectVisual<LightStorage>, SimpleDynamicVisual {
 
 		private final InstanceRecycler<TransformedInstance> boxes;
@@ -524,7 +560,10 @@ public class LightStorage implements Effect {
 		}
 
 		private void setupSectionBoxes() {
-			section2ArenaIndex.keySet()
+			for (Int2ObjectMap.Entry<Long2IntMap> entry : scene2SectionArenaIndexMap.int2ObjectEntrySet()) {
+				int sceneId = entry.getIntKey();
+				Long2IntMap section2ArenaIndex = entry.getValue();
+				section2ArenaIndex.keySet()
 					.forEach(l -> {
 						var x = SectionPos.x(l) * 16 - renderOrigin.getX();
 						var y = SectionPos.y(l) * 16 - renderOrigin.getY();
@@ -535,10 +574,12 @@ public class LightStorage implements Effect {
 						instance.setIdentityTransform()
 								.translate(x, y, z)
 								.scale(16)
-								.color(255, 255, 0)
+								.color(255, 255, sceneId * 64)
 								.light(LightTexture.FULL_BRIGHT)
 								.setChanged();
 					});
+			}
+
 		}
 
 		private void setupLutRangeBoxes() {
@@ -632,19 +673,6 @@ public class LightStorage implements Effect {
 		@Override
 		public void delete() {
 			boxes.delete();
-		}
-	}
-
-	private static class ConstantDataLayer extends DataLayer {
-		private final int value;
-
-		private ConstantDataLayer(int value) {
-			this.value = value;
-		}
-
-		@Override
-		public int get(int x, int y, int z) {
-			return value;
 		}
 	}
 }

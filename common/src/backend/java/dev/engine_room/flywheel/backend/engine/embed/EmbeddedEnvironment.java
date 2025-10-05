@@ -27,8 +27,10 @@ public class EmbeddedEnvironment implements VisualEmbedding, Environment {
 
 	private final Matrix4f pose = new Matrix4f();
 	private final Matrix3f normal = new Matrix3f();
+	private final Matrix4f scene = new Matrix4f();
 	private final Matrix4f poseComposed = new Matrix4f();
 	private final Matrix3f normalComposed = new Matrix3f();
+	private int sceneId = 0;
 
 	public int matrixIndex = 0;
 
@@ -59,6 +61,12 @@ public class EmbeddedEnvironment implements VisualEmbedding, Environment {
 	}
 
 	@Override
+	public void setLightingScene(Matrix4fc sceneMatrix, int scene) {
+		this.scene.set(sceneMatrix);
+		this.sceneId = scene;
+	}
+
+	@Override
 	public InstancerProvider instancerProvider() {
 		return instancerProvider;
 	}
@@ -85,6 +93,8 @@ public class EmbeddedEnvironment implements VisualEmbedding, Environment {
 	public void setupDraw(GlProgram program) {
 		program.setMat4(EmbeddingUniforms.MODEL_MATRIX, poseComposed);
 		program.setMat3(EmbeddingUniforms.NORMAL_MATRIX, normalComposed);
+		program.setMat4(EmbeddingUniforms.SCENE_MATRIX, scene);
+		program.setUInt(EmbeddingUniforms.SCENE, sceneId);
 	}
 
 	@Override
