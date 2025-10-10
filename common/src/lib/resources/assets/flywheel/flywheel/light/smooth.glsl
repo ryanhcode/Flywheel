@@ -1,4 +1,5 @@
 #ifdef FLW_EMBEDDED
+uniform float _flw_lightingSkyLightScaleUniform;
 flat in uint flw_vertexLightingSceneId;
 in vec4 flw_vertexLightingPos;
 #endif
@@ -27,4 +28,8 @@ void flw_shaderLight() {
 
         flw_fragColor.rgb *= light.ao;
     }
+
+    #ifdef FLW_EMBEDDED
+    flw_fragLight.y *= _flw_lightingSkyLightScaleUniform;
+    #endif
 }

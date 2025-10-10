@@ -1,4 +1,5 @@
 #ifdef FLW_EMBEDDED
+uniform float _flw_lightingSkyLightScaleUniform;
 flat in uint flw_vertexLightingSceneId;
 in vec4 flw_vertexLightingPos;
 #endif
@@ -26,4 +27,8 @@ void flw_shaderLight() {
     if (flw_lightFetch(sceneId, ivec3(floor(vertexLightingPos.xyz)) + renderOrigin, embeddedLight)) {
         flw_fragLight = max(flw_fragLight, embeddedLight);
     }
+
+    #ifdef FLW_EMBEDDED
+    flw_fragLight.y *= _flw_lightingSkyLightScaleUniform;
+    #endif
 }

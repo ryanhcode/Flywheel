@@ -33,6 +33,7 @@ public class EmbeddedEnvironment implements VisualEmbedding, Environment {
 	private final Matrix4f poseComposed = new Matrix4f();
 	private final Matrix3f normalComposed = new Matrix3f();
 	private int sceneId = LightStorage.STATIC_SCENE_ID;
+	private float skyLightScale = 1.0f;
 	public int matrixIndex = 0;
 
 	private boolean deleted = false;
@@ -61,10 +62,10 @@ public class EmbeddedEnvironment implements VisualEmbedding, Environment {
 		this.normal.set(normal);
 	}
 
-	@Override
-	public void setLightingScene(Matrix4fc sceneMatrix, int scene) {
+	public void setLightingInfo(Matrix4fc sceneMatrix, int scene, float skyLightScale) {
 		this.scene.set(sceneMatrix);
 		this.sceneId = scene;
+		this.skyLightScale = skyLightScale;
 	}
 
 	@Override
@@ -95,6 +96,7 @@ public class EmbeddedEnvironment implements VisualEmbedding, Environment {
 		program.setMat4(EmbeddingUniforms.MODEL_MATRIX, poseComposed);
 		program.setMat3(EmbeddingUniforms.NORMAL_MATRIX, normalComposed);
 		program.setUInt(EmbeddingUniforms.SCENE, sceneId);
+		program.setFloat(EmbeddingUniforms.SKY_LIGHT_SCALE, skyLightScale);
 
 		if (sceneId == 0) {
 			program.setMat4(EmbeddingUniforms.SCENE_MATRIX, poseComposed);

@@ -28,7 +28,7 @@ public interface VisualEmbedding extends VisualizationContext {
 	/**
 	 * Set the scene ID used for lighting in this embedding
 	 */
-	void setLightingScene(Matrix4fc sceneMatrix, int scene);
+	void setLightingInfo(Matrix4fc sceneMatrix, int scene, float skyLightScale);
 
 	/**
 	 * Delete this embedding.
