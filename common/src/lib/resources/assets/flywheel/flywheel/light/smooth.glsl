@@ -20,7 +20,7 @@ void flw_shaderLight() {
     #else
     renderOrigin = flw_renderOrigin;
     vertexLightingPos = flw_vertexPos;
-    #ifdef
+    #endif
 
     FlwLightAo light;
     if (flw_light(sceneId, vertexLightingPos.xyz, flw_vertexNormal, renderOrigin, light)) {

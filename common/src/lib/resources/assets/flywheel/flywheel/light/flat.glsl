@@ -22,7 +22,7 @@ void flw_shaderLight() {
     #else
     renderOrigin = flw_renderOrigin;
     vertexLightingPos = flw_vertexPos;
-    #ifdef
+    #endif
 
     if (flw_lightFetch(sceneId, ivec3(floor(vertexLightingPos.xyz)) + renderOrigin, embeddedLight)) {
         flw_fragLight = max(flw_fragLight, embeddedLight);
