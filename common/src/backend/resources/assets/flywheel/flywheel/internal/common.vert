@@ -69,9 +69,11 @@ vec2 getCrumblingTexCoord() {
 #ifdef FLW_EMBEDDED
 mat4 _flw_modelMatrix;
 mat3 _flw_normalMatrix;
-mat4 _flw_lightingSceneMatrix;
 uint _flw_lightingSceneId;
+float _flw_skyLightScale;
+mat4 _flw_lightingSceneMatrix;
 flat out uint flw_vertexLightingSceneId;
+flat out float flw_skyLightScale;
 out vec4 flw_vertexLightingPos;
 #endif
 
@@ -93,6 +95,7 @@ void _flw_main(in FlwInstance instance, in uint stableInstanceID, in uint modelI
     flw_vertexPos = _flw_modelMatrix * flw_vertexPos;
     flw_vertexNormal = _flw_normalMatrix * flw_vertexNormal;
     flw_vertexLightingSceneId = _flw_lightingSceneId;
+    flw_skyLightScale = _flw_skyLightScale;
     #endif
 
     flw_vertexNormal = normalize(flw_vertexNormal);

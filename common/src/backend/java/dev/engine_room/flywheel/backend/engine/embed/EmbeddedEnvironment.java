@@ -20,6 +20,8 @@ import dev.engine_room.flywheel.backend.gl.shader.GlProgram;
 import dev.engine_room.flywheel.lib.util.ExtraMemoryOps;
 import net.minecraft.core.Vec3i;
 
+import org.lwjgl.system.MemoryUtil;
+
 public class EmbeddedEnvironment implements VisualEmbedding, Environment {
 	private final EngineImpl engine;
 	private final Vec3i renderOrigin;
@@ -34,7 +36,7 @@ public class EmbeddedEnvironment implements VisualEmbedding, Environment {
 	private final Matrix3f normalComposed = new Matrix3f();
 	private int sceneId = LightStorage.STATIC_SCENE_ID;
 	private float skyLightScale = 1.0f;
-	public int matrixIndex = 0;
+	public int infoIndex = 0;
 
 	private boolean deleted = false;
 
@@ -107,7 +109,7 @@ public class EmbeddedEnvironment implements VisualEmbedding, Environment {
 
 	@Override
 	public int matrixIndex() {
-		return matrixIndex;
+		return infoIndex;
 	}
 
 	public void flush(long ptr) {
@@ -118,6 +120,18 @@ public class EmbeddedEnvironment implements VisualEmbedding, Environment {
 
 		ExtraMemoryOps.putMatrix4f(ptr, poseComposed);
 		ExtraMemoryOps.putMatrix3fPadded(ptr + 16 * Float.BYTES, normalComposed);
+
+		MemoryUtil.memPutInt(ptr + 28 * Float.BYTES, sceneId);
+		MemoryUtil.memPutFloat(ptr + 29 * Float.BYTES, skyLightScale);
+
+		final long sceneMatrixOffset = ptr + 32 * Float.BYTES;
+
+		if (sceneId == 0) {
+			ExtraMemoryOps.putMatrix4f(sceneMatrixOffset, poseComposed);
+		} else {
+			ExtraMemoryOps.putMatrix4f(sceneMatrixOffset, scene);
+		}
+
 	}
 
 	private void composeMatrices(Matrix4f pose, Matrix3f normal) {
