@@ -3,8 +3,10 @@ struct Matrices {
     vec4 normalA;
     vec4 normalB;
     vec4 normalC;
-    uint sceneID;
     float skyLightScale;
+    uint sceneID;
+    float _padding1;
+    float _padding2;
     mat4 lightingSceneMatrix;
 };
 

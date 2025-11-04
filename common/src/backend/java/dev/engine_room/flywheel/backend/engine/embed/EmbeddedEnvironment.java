@@ -121,17 +121,17 @@ public class EmbeddedEnvironment implements VisualEmbedding, Environment {
 		ExtraMemoryOps.putMatrix4f(ptr, poseComposed);
 		ExtraMemoryOps.putMatrix3fPadded(ptr + 16 * Float.BYTES, normalComposed);
 
-		MemoryUtil.memPutInt(ptr + 28 * Float.BYTES, sceneId);
-		MemoryUtil.memPutFloat(ptr + 29 * Float.BYTES, skyLightScale);
+		MemoryUtil.memPutFloat(ptr + 28 * Float.BYTES, skyLightScale);
+		MemoryUtil.memPutInt(ptr + 29 * Float.BYTES, sceneId);
+		MemoryUtil.memPutFloat(ptr + 30 * Float.BYTES, 0);
+		MemoryUtil.memPutFloat(ptr + 31 * Float.BYTES, 0);
 
 		final long sceneMatrixOffset = ptr + 32 * Float.BYTES;
-
 		if (sceneId == 0) {
 			ExtraMemoryOps.putMatrix4f(sceneMatrixOffset, poseComposed);
 		} else {
 			ExtraMemoryOps.putMatrix4f(sceneMatrixOffset, scene);
 		}
-
 	}
 
 	private void composeMatrices(Matrix4f pose, Matrix3f normal) {

@@ -6,8 +6,9 @@ import it.unimi.dsi.fastutil.objects.ReferenceSet;
 
 public class EnvironmentStorage {
 	public static final int INFO_SIZE_BYTES = (16 + 12) * Float.BYTES +
-			Integer.BYTES + // scene ID
 			Float.BYTES + // sky light scale
+			Integer.BYTES + // scene ID
+			2 * Float.BYTES + // padding
 			16 * Float.BYTES; // scene matrix
 
 	protected final Object lock = new Object();
